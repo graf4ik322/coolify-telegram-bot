@@ -97,10 +97,11 @@ async def menu_main(cb: CallbackQuery) -> None:
         "Выберите раздел:"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📋 Приложения", callback_data="menu:apps")],
-        [InlineKeyboardButton(text="🖥 Серверы", callback_data="menu:servers")],
-        [InlineKeyboardButton(text="📦 Деплои", callback_data="menu:deployments")],
-        [InlineKeyboardButton(text="🔔 Подписки", callback_data="menu:subscriptions")],
+        [InlineKeyboardButton(text="📋 Приложения", callback_data="menu:apps_go")],
+        [InlineKeyboardButton(text="📋 Проекты", callback_data="menu:projects_go")],
+        [InlineKeyboardButton(text="🖥 Серверы", callback_data="menu:servers_go")],
+        [InlineKeyboardButton(text="📦 Деплои", callback_data="menu:deployments_go")],
+        [InlineKeyboardButton(text="🔔 Подписки", callback_data="menu:subscriptions_go")],
         [InlineKeyboardButton(text="❓ Помощь", callback_data="menu:help")],
     ])
     await cb.message.edit_text(text, reply_markup=kb)
@@ -140,24 +141,94 @@ async def main() -> None:
 
     @dp.callback_query(lambda c: c.data.startswith("menu:"))
     async def menu_nav(cb: CallbackQuery) -> None:
-        """Route menu selections to actual commands."""
+        """Route menu selections to full interactive sections."""
+        from bot.db.repository import get_user as _get_user
+        from bot.handlers.apps import back_to_app_list
+        from bot.services.coolify import CoolifyClientError, coolify
+        from bot.utils.states import (
+            empty_state,
+            error_text,
+            loading_text,
+            nav_back_main,
+            nav_main_only,
+        )
+
         target = cb.data.split(":", 1)[1]
+        await cb.answer()
 
-        # Map menu targets to command-style responses
-        mappings = {
-            "apps_go": "📱 Используйте команду /apps",
-            "projects_go": "📋 Используйте команду /projects",
-            "servers_go": "🖥 Используйте команду /servers",
-            "deployments_go": "📦 Используйте команду /deployments",
-            "subscriptions_go": "🔔 Используйте команду /mysubs",
-            "help": "📖 Используйте команду /help",
-        }
+        # Resolve user
+        uid = cb.from_user.id
+        db_user = await _get_user(uid)
+        if not db_user:
+            return
 
-        hint = mappings.get(target)
-        if hint:
-            await cb.answer(hint, show_alert=False)
-        else:
-            await cb.answer()
+        if target == "apps_go":
+            await back_to_app_list(cb, db_user)
+
+        elif target == "projects_go":
+            from bot.handlers.projects import show_projects_from_callback
+            await show_projects_from_callback(cb, db_user)
+        elif target == "projects":
+            from bot.handlers.projects import show_projects_from_callback
+            await show_projects_from_callback(cb, db_user)
+
+        elif target == "servers_go":
+            from bot.handlers.servers import _show_servers
+
+            await _show_servers(cb, db_user)
+
+        elif target == "deployments_go":
+            from bot.handlers.deploy import _show_deployments
+
+            await _show_deployments(cb, db_user)
+
+        elif target == "subscriptions_go":
+            from bot.db.repository import get_subscriptions
+
+            subs = await get_subscriptions(uid)
+            if not subs:
+                await cb.message.edit_text(empty_state("subscriptions"), reply_markup=nav_main_only())
+                return
+            lines = ["🔔 **Ваши подписки:**\n"]
+            for s in subs:
+                lines.append(f"• **{s.resource_name}** ({s.resource_type})")
+            await cb.message.edit_text("\n".join(lines), reply_markup=nav_main_only())
+
+        elif target == "ping":
+            import time
+
+            start = time.time()
+            try:
+                health = await coolify.health()
+                coolify_ok = f"✅ {health.status}"
+            except Exception:
+                coolify_ok = "❌ недоступен"
+            elapsed = int((time.time() - start) * 1000)
+            await cb.message.edit_text(
+                f"🩺 **Bot Health**\n\n"
+                f"🤖 Бот: ✅ работает\n"
+                f"⚡ Ответ: `{elapsed}ms`\n"
+                f"🔗 Coolify API: {coolify_ok}",
+                reply_markup=nav_main_only(),
+            )
+
+        elif target == "help":
+            await cb.message.edit_text(
+                "📖 **Coolify Bot — Справка**\n\n"
+                "• `/apps` — список приложений\n"
+                "• `/projects` — проекты и окружения\n"
+                "• `/servers` — серверы\n"
+                "• `/status <app>` — карточка\n"
+                "• `/logs <app>` — логи\n"
+                "• `/deployments` — деплои\n"
+                "• `/subscribe <app>` — подписка\n\n"
+                "_Вернуться в меню: кнопка внизу_",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="menu:main")],
+                    ]
+                ),
+            )
 
     @dp.callback_query(lambda c: c.data.startswith("page:"))
     async def page_nav(cb: CallbackQuery) -> None:
