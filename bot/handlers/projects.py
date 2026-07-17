@@ -146,7 +146,7 @@ async def environment_detail(cb: CallbackQuery, db_user: User) -> None:
     lines = [f"\U0001f3d7 **{project.name}** \u2192 \U0001f30d **{env_label}**"]
     apps = all_apps; services = all_services
     if not apps and not services:
-        await cb.message.edit_text(f"\U0001f30d **{env_label}**\n\n{empty_state(apps)}",
+        await cb.message.edit_text(f"\U0001f30d **{env_label}**\n\n{empty_state('apps')}",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="\u2b05\ufe0f Назад к проекту", callback_data=f"proj:{project_uuid}")],
                 [InlineKeyboardButton(text="\U0001f3e0 Главное меню", callback_data="menu:main")],

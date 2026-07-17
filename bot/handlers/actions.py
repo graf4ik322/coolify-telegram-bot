@@ -274,7 +274,7 @@ async def resource_action_request(cb: CallbackQuery, db_user: User) -> None:
 
     res_type, res_uuid, action = parts[1], parts[2], parts[3]
 
-    if action not in _ACTIONS:
+    if action not in _ACTIONS and action not in _SERVICE_ACTIONS:
         await cb.answer(f"❌ Неизвестное действие: {action}", show_alert=True)
         return
 
