@@ -6,7 +6,7 @@ import logging
 
 from aiogram import Router
 from aiogram.filters import Command, CommandObject
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from bot.db.models import User
 from bot.services.coolify import CoolifyClientError, coolify
@@ -93,6 +93,41 @@ async def cmd_deployments(message: Message, db_user: User) -> None:
             ]
         ),
     )
+
+
+async def _show_deployments(cb: CallbackQuery, db_user: User) -> None:
+    """Show all deployments (called from main menu callback)."""
+    await cb.answer()
+    await cb.message.edit_text(loading_text("Загружаю деплои"))
+
+    try:
+        deploys = await coolify.list_deployments()
+    except CoolifyClientError as exc:
+        text, kb = error_text(exc.message, code=str(exc.status), retry_callback="menu:deployments_go")
+        await cb.message.edit_text(text, reply_markup=kb)
+        return
+    except Exception:
+        log.exception("Error listing deployments")
+        text, kb = error_text("Не удалось получить список деплоев.", retry_callback="menu:deployments_go")
+        await cb.message.edit_text(text, reply_markup=kb)
+        return
+
+    if not deploys:
+        await cb.message.edit_text(empty_state("deployments"), reply_markup=nav_back_main())
+        return
+
+    lines = ["📦 **Последние деплои:**\n"]
+    for d in deploys[-10:]:
+        em = status_emoji(d.status)
+        name = d.application_uuid[:8] if d.application_uuid else "?"
+        ts = fmt_relative_time(d.finished_at) if d.finished_at else ""
+        lines.append(f"{em} `{name}` — {d.status or 'N/A'} {ts}")
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Обновить", callback_data="deploy:refresh")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="menu:main")],
+    ])
+    await cb.message.edit_text("\n".join(lines), reply_markup=kb)
 
 
 @router.callback_query(lambda c: c.data == "deploy:refresh")

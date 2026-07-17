@@ -97,7 +97,6 @@ async def menu_main(cb: CallbackQuery) -> None:
         "Выберите раздел:"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📋 Приложения", callback_data="menu:apps_go")],
         [InlineKeyboardButton(text="📋 Проекты", callback_data="menu:projects_go")],
         [InlineKeyboardButton(text="🖥 Серверы", callback_data="menu:servers_go")],
         [InlineKeyboardButton(text="📦 Деплои", callback_data="menu:deployments_go")],
