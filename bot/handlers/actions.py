@@ -38,7 +38,7 @@ _ACTIONS = {
     "restart": ("🔄", "перезапустить", coolify.restart_application),
     "stop": ("⏹", "остановить", coolify.stop_application),
     "start": ("▶️", "запустить", coolify.start_application),
-    "redeploy": ("📦", "передеплоить", lambda u: coolify.deploy(tag=u)),
+    "redeploy": ("📦", "передеплоить", coolify.restart_application),
 }
 
 _ACTION_LABELS = {
