@@ -15,6 +15,7 @@ FROM python:3.12-alpine AS runtime
 RUN apk add --no-cache tini
 
 WORKDIR /app
+RUN mkdir -p /app/data
 COPY --from=builder /venv /venv
 COPY bot/ ./bot/
 

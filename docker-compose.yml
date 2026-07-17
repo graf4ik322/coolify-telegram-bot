@@ -1,13 +1,33 @@
+# Coolify Telegram Bot — локальная разработка
+# Скопируйте .env.example → .env, заполните токены, запустите:
+#   docker compose up -d
+
 services:
   bot:
     build: .
     container_name: coolify-telegram-bot
     restart: unless-stopped
-    env_file: .env
-    volumes:
-      - bot_data:/app/data
     ports:
       - "8080:8080"
+    environment:
+      # Telegram
+      - BOT_TOKEN=${BOT_TOKEN:?required}
+      # Coolify API
+      - COOLIFY_API_URL=${COOLIFY_API_URL:-https://app.coolify.io/api/v1}
+      - COOLIFY_API_TOKEN=${COOLIFY_API_TOKEN:?required}
+      # Admin IDs
+      - ADMIN_IDS=${ADMIN_IDS:?required}
+      # Database (SQLite, хранится в volume)
+      - DATABASE_URL=sqlite+aiosqlite:///app/data/bot.db
+      # Security
+      - CONFIRM_SECRET_KEY=${CONFIRM_SECRET_KEY:-}
+      - CONFIRM_TTL_SECONDS=45
+      - RATE_LIMIT_PER_MINUTE=10
+      - RESTART_COOLDOWN_SECONDS=120
+      - LOGS_DEFAULT_LINES=50
+      - LOG_LEVEL=INFO
+    volumes:
+      - bot_data:/app/data
     networks:
       - coolify-bot-net
 

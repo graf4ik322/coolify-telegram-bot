@@ -15,8 +15,8 @@ services:
       # -- Coolify API --
       - COOLIFY_API_URL=${COOLIFY_API_URL:-https://app.coolify.io/api/v1}
       - COOLIFY_API_TOKEN=${COOLIFY_API_TOKEN:?required}
-      # -- Database --
-      - DATABASE_URL=sqlite+aiosqlite:///data/bot.db
+      # -- Database (persisted via volume) --
+      - DATABASE_URL=sqlite+aiosqlite:///app/data/bot.db
       # -- Admin IDs (comma-separated Telegram user IDs) --
       - ADMIN_IDS=${ADMIN_IDS:?required}
       # -- Optional: Redis --
