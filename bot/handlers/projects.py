@@ -346,7 +346,10 @@ async def environment_detail(cb: CallbackQuery, db_user: User) -> None:
 
 @router.callback_query(F.data.startswith("res:"))
 async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
-    """Show resource card with action buttons."""
+    """Show resource card with action buttons.
+
+    Works identically for applications and services (same actions, same layout).
+    """
     parts = cb.data.split(":", 2)
     if len(parts) < 3:
         await cb.answer(_ERR_DATA, show_alert=True)
@@ -356,8 +359,20 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
     await cb.answer()
 
     try:
+        # ── Fetch resource data ──────────────────────────────────────────────
+        lines = []
+        res_name = res_uuid[:12]
+        status_val = None
+        fqdn_val = None
+        has_instances = False
+        instances = []
+
         if res_type == "application":
-            app = await coolify.get_application(res_uuid)
+            obj = await coolify.get_application(res_uuid)
+            res_name = obj.name or res_name
+            status_val = obj.status
+            fqdn_val = obj.fqdn
+
             deploys = await coolify.list_deployments()
             latest = None
             for d in deploys:
@@ -365,104 +380,88 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
                     latest = d
                     break
 
-            em = status_emoji(app.status)
+            em = status_emoji(status_val)
             lines = [
-                f"\U0001f4e6 **{app.name}**",
-                f"" + _STATUS + ": {em} **{app.status or '" + _UNKNOWN + "'}**",
-                f"`{app.uuid[:8]}...`",
+                f"\\U0001f4e6 **{res_name}**",
+                f"" + _STATUS + ": {em} **{status_val or '" + _UNKNOWN + "'}**",
+                f"`{res_uuid[:8]}...`",
             ]
-            if app.fqdn:
-                lines.append(f"\U0001f310 [{app.fqdn}](https://{app.fqdn})")
-            if app.description:
-                lines.append(f"\n_{app.description[:300]}_")
-            if app.git_repository:
-                lines.append(f"\n\U0001f4c2 `{app.git_repository}`")
-                if app.git_branch:
-                    lines.append(f"\U0001f33f `{app.git_branch}`")
-            if app.docker_registry_image_name:
-                lines.append(f"\U0001f433 `{app.docker_registry_image_name}:{app.docker_registry_image_tag or 'latest'}`")
+            if fqdn_val:
+                lines.append(f"\\U0001f310 [{fqdn_val}](https://{fqdn_val})")
+            if obj.description:
+                lines.append(f"\\n_{obj.description[:300]}_")
+            if obj.git_repository:
+                lines.append(f"\\n\\U0001f4c2 `{obj.git_repository}`")
+                if obj.git_branch:
+                    lines.append(f"\\U0001f33f `{obj.git_branch}`")
+            if obj.docker_registry_image_name:
+                lines.append(f"\\U0001f433 `{obj.docker_registry_image_name}:{obj.docker_registry_image_tag or 'latest'}`")
             if latest:
-                lines.append(f"\n\U0001f504 " + _DEPLOY + ": **{latest.status}**")
+                lines.append(f"\\n\\U0001f504 " + _DEPLOY + ": **{latest.status}**")
                 if latest.finished_at:
-                    lines.append(f"\u23f1 {fmt_relative_time(latest.finished_at)}")
+                    lines.append(f"\\u23f1 {fmt_relative_time(latest.finished_at)}")
 
         elif res_type == "service":
-            # Try full detail first, fall back to list data
+            # Fetch service detail — fallback to list data on failure
+            obj = None
             try:
-                srv = await coolify.get_service(res_uuid)
+                obj = await coolify.get_service(res_uuid)
             except Exception as exc:
-                log.warning("get_service(%s) failed: %s — falling back to list data", res_uuid, exc)
-                # Search in cached list for this service
+                log.warning("get_service(%s) failed: %s: %s", res_uuid, type(exc).__name__, exc)
+            if obj is None:
                 services = await _get_services()
-                srv = next((s for s in services if s.uuid == res_uuid), None)
-                if not srv:
-                    # Last resort: minimal object
-                    from bot.services.models import Service as SvcModel
-                    srv = SvcModel(uuid=res_uuid, name=res_uuid[:12], status=None)
+                obj = next((s for s in services if s.uuid == res_uuid), None)
+            if obj is None:
+                from bot.services.models import Service as _Svc
+                obj = _Svc(uuid=res_uuid)
 
-            em = status_emoji(srv.status)
+            res_name = obj.name or res_name
+            status_val = obj.status
+
+            em = status_emoji(status_val)
             lines = [
-                f"\U0001f9e9 **{srv.name}**",
-                f"" + _STATUS + ": {em} **{srv.status or '" + _UNKNOWN + "'}**",
-                f"`{srv.uuid[:8]}...`",
+                f"\\U0001f9e9 **{res_name}**",
+                f"" + _STATUS + ": {em} **{status_val or '" + _UNKNOWN + "'}**",
+                f"`{res_uuid[:8]}...`",
             ]
-            if srv.description:
-                lines.append(f"\n_{srv.description[:300]}_")
-            if srv.service_type:
-                lines.append(f"\n\U0001f4cb " + _TYPE + ": `{srv.service_type}`")
-            if srv.docker_compose_raw or srv.docker_compose:
-                import yaml
-                yaml_text = srv.docker_compose or srv.docker_compose_raw or ""
-                try:
-                    parsed = yaml.safe_load(yaml_text)
-                    if parsed and "services" in parsed:
-                        svc_names = list(parsed["services"].keys())
-                        lines.append(f"\\n\\U0001f433 **" + _CONTAINERS + " ({len(svc_names)}):**")
-                        for sn in svc_names:
-                            lines.append(f"  \\u2022 `{sn}`")
-                except Exception:
-                    # Fallback: regex parse
-                    svc_names = re.findall(r"^  ([a-zA-Z0-9_-]+):", yaml_text, re.MULTILINE)
-                    if svc_names:
-                        lines.append(f"\\n\\U0001f433 **" + _CONTAINERS + " ({len(svc_names)}):**")
-                        for sn in svc_names:
-                            lines.append(f"  \\u2022 `{sn}`")
-        else:
-            lines = [f"\U0001f4ce " + _RESOURCE + " (`{res_uuid[:8]}...`)\n\n" + _TYPE + ": {res_type}"]
+            if getattr(obj, "description", None):
+                lines.append(f"\\n_{obj.description[:300]}_")
+            if getattr(obj, "service_type", None):
+                lines.append(f"\\n\\U0001f4cb " + _TYPE + ": `{obj.service_type}`")
 
-        lines.append(f"\n\n**" + _ACTIONS + ":**")
+        else:
+            lines = [f"\\U0001f4ce " + _RESOURCE + " (`{res_uuid[:8]}...`)\\n\\n" + _TYPE + ": {res_type}"]
+
+        # ── Action buttons (same for apps and services) ─────────────────────
+        lines.append(f"\\n\\n**" + _ACTIONS + ":**")
 
         kb_rows = [
             [
-                InlineKeyboardButton(text="\u25b6\ufe0f Start", callback_data=f"act_r:{res_type}:{res_uuid}:start"),
-                InlineKeyboardButton(text="\u23f9 Stop", callback_data=f"act_r:{res_type}:{res_uuid}:stop"),
+                InlineKeyboardButton(text="\\u25b6\\ufe0f Start", callback_data=f"act_r:{res_type}:{res_uuid}:start"),
+                InlineKeyboardButton(text="\\u23f9 Stop", callback_data=f"act_r:{res_type}:{res_uuid}:stop"),
             ],
             [
-                InlineKeyboardButton(text="\U0001f504 Restart", callback_data=f"act_r:{res_type}:{res_uuid}:restart"),
+                InlineKeyboardButton(text="\\U0001f504 Restart", callback_data=f"act_r:{res_type}:{res_uuid}:restart"),
             ],
             [
-                InlineKeyboardButton(text="\U0001f4cb Logs", callback_data=f"log_r:{res_type}:{res_uuid}"),
+                InlineKeyboardButton(text="\\U0001f4cb Logs", callback_data=f"log_r:{res_type}:{res_uuid}"),
             ],
-            [InlineKeyboardButton(text="\u2b05\ufe0f " + _BACK, callback_data="menu:projects")],
-            [InlineKeyboardButton(text="\U0001f3e0 " + _MAIN_MENU, callback_data="menu:main")],
+            [InlineKeyboardButton(text="\\u2b05\\ufe0f " + _BACK, callback_data="menu:projects")],
+            [InlineKeyboardButton(text="\\U0001f3e0 " + _MAIN_MENU, callback_data="menu:main")],
         ]
 
         await cb.message.edit_text(
-            "\n".join(lines),
+            "\\n".join(lines),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=kb_rows),
         )
 
     except CoolifyClientError as exc:
+        log.error("CoolifyClientError in resource_detail(%s/%s): %s", res_type, res_uuid, exc)
         text, kb = error_text(exc.message, code=str(exc.status), retry_callback=f"res:{res_type}:{res_uuid}")
         await cb.message.edit_text(text, reply_markup=kb)
     except Exception:
-        log.exception("Error loading resource %s/%s", res_type, res_uuid)
-        # Try to get more details
-        err_info = ""
-        import traceback
-        err_info = traceback.format_exc()[:200]
-        log.error("Traceback details: %s", err_info)
-        text, kb = error_text(_ERR_INFO, retry_callback=f"res:{res_type}:{res_uuid}")
+        log.exception("Unhandled exception in resource_detail(%s/%s)", res_type, res_uuid)
+        text, kb = error_text(_ERR_INFO + "\\n\\n_Смотри логи контейнера для деталей_", retry_callback=f"res:{res_type}:{res_uuid}")
         await cb.message.edit_text(text, reply_markup=kb)
 
 
