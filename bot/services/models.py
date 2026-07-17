@@ -78,6 +78,22 @@ class Application(BaseModel):
 
 # ── Service (Docker Compose) ─────────────────────────────────────────────────
 
+class ServiceApplication(BaseModel):
+    """Individual container instance within a docker-compose service."""
+
+    model_config = {"extra": "ignore"}
+
+    id: int | None = None
+    uuid: str | None = None
+    name: str | None = None
+    status: str | None = None
+    fqdn: str | None = None
+    ports: str | None = None
+    image: str | None = None
+    service_id: int | None = None
+    exclude_from_status: bool | None = None
+
+
 class Service(BaseModel):
     """Coolify docker-compose service resource."""
 
@@ -102,6 +118,8 @@ class Service(BaseModel):
     created_at: str | None = None
     updated_at: str | None = None
     deleted_at: str | None = None
+    applications: list[ServiceApplication] | None = None
+    fqdn: str | None = None
 
 
 # ── Application Deployment Queue ─────────────────────────────────────────────

@@ -417,6 +417,7 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
 
             res_name = obj.name or res_name
             status_val = obj.status
+            fqdn_val = getattr(obj, "fqdn", None)
 
             em = status_emoji(status_val)
             lines = [
@@ -424,8 +425,34 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
                 f"{_STATUS}: {em} **{status_val or _UNKNOWN}**",
                 f"`{res_uuid[:8]}...`",
             ]
+
+            # Service-level FQDN (from the API response)
+            if fqdn_val:
+                for domain in fqdn_val.split(","):
+                    domain = domain.strip()
+                    if domain:
+                        lines.append(f"\U0001f310 [{domain}]({domain})")
+
             if getattr(obj, "description", None):
                 lines.append(f"\n{obj.description[:300]}")
+
+            # Container instances
+            apps_list = getattr(obj, "applications", None) or []
+            if apps_list:
+                lines.append(f"\n\U0001f433 **\u041a\u043e\u043d\u0442\u0435\u0439\u043d\u0435\u0440\u044b ({len(apps_list)}):**")
+                for c in apps_list:
+                    c_em = status_emoji(c.status)
+                    c_name = c.name or "?"
+                    c_line = f"  {c_em} `{c_name}`"
+                    if c.fqdn:
+                        # Show first domain only to keep it short
+                        first = c.fqdn.split(",")[0].strip().replace("https://", "").replace("http://", "")
+                        if len(first) > 25:
+                            first = first[:22] + "..."
+                        c_line += f" \u2192 {first}"
+                    if c.ports:
+                        c_line += f" (\U0001f5a5 {c.ports})"
+                    lines.append(c_line)
             if getattr(obj, "service_type", None):
                 lines.append(f"\n\U0001f4cb " + _TYPE + ": `{obj.service_type}`")
 
