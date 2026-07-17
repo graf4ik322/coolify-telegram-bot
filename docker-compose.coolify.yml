@@ -1,0 +1,43 @@
+# Coolify Telegram Bot — Docker Compose Template
+# Используется для деплоя через Coolify "Docker Compose" stack.
+# Замените значения переменных окружения через Coolify UI (Environment Variables).
+
+services:
+  bot:
+    image: ghcr.io/graf4ik322/coolify-telegram-bot:latest
+    container_name: coolify-telegram-bot
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # -- Telegram --
+      - BOT_TOKEN=${BOT_TOKEN:?required}
+      # -- Coolify API --
+      - COOLIFY_API_URL=${COOLIFY_API_URL:-https://app.coolify.io/api/v1}
+      - COOLIFY_API_TOKEN=${COOLIFY_API_TOKEN:?required}
+      # -- Database --
+      - DATABASE_URL=sqlite+aiosqlite:///data/bot.db
+      # -- Admin IDs (comma-separated Telegram user IDs) --
+      - ADMIN_IDS=${ADMIN_IDS:?required}
+      # -- Optional: Redis --
+      # - REDIS_URL=redis://redis:6379/0
+      # -- Security --
+      - CONFIRM_SECRET_KEY=${CONFIRM_SECRET_KEY:-}
+      - CONFIRM_TTL_SECONDS=45
+      # -- Rate limit --
+      - RATE_LIMIT_PER_MINUTE=10
+      - RESTART_COOLDOWN_SECONDS=120
+      - LOGS_DEFAULT_LINES=50
+      # -- Logging --
+      - LOG_LEVEL=INFO
+    volumes:
+      - bot-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  bot-data:

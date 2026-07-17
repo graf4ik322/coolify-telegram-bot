@@ -1,5 +1,7 @@
 # Coolify Telegram Bot 🤖
 
+[![Docker](https://github.com/graf4ik322/coolify-telegram-bot/actions/workflows/docker-build.yml/badge.svg)](https://github.com/graf4ik322/coolify-telegram-bot/actions/workflows/docker-build.yml)
+
 Telegram-бот для оперативного мониторинга и безопасного управления приложениями на **Coolify** — без доступа к веб-панели, с телефона за 30 секунд.
 
 ## Возможности
@@ -107,6 +109,37 @@ uv pip install -e ".[dev]"
 
 # Запуск
 python -m bot.main
+```
+
+## Деплой на Coolify
+
+Проект автоматически собирается в Docker-образ при пуше в `main` через GitHub Actions.
+
+### Через Coolify (Docker Compose)
+
+1. В Coolify: **Resources → New Resource → Docker Compose**
+2. Вставьте содержимое `docker-compose.coolify.yml`
+3. В **Environment Variables** укажите обязательные переменные:
+   - `BOT_TOKEN` — токен Telegram бота
+   - `COOLIFY_API_TOKEN` — токен Coolify API (scope: write)
+   - `ADMIN_IDS` — Telegram ID администраторов через запятую
+4. Нажмите **Deploy**
+
+### Вручную через docker-compose
+
+```bash
+curl -O https://raw.githubusercontent.com/graf4ik322/coolify-telegram-bot/main/docker-compose.coolify.yml
+cp docker-compose.coolify.yml docker-compose.yml
+# отредактируйте .env
+docker compose up -d
+```
+
+## GitHub Container Registry
+
+Образы публикуются в `ghcr.io`:
+```
+ghcr.io/graf4ik322/coolify-telegram-bot:latest
+ghcr.io/graf4ik322/coolify-telegram-bot:{sha}
 ```
 
 ## Лицензия
