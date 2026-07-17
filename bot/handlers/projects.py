@@ -387,7 +387,19 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
                     lines.append(f"\u23f1 {fmt_relative_time(latest.finished_at)}")
 
         elif res_type == "service":
-            srv = await coolify.get_service(res_uuid)
+            # Try full detail first, fall back to list data
+            try:
+                srv = await coolify.get_service(res_uuid)
+            except Exception as exc:
+                log.warning("get_service(%s) failed: %s — falling back to list data", res_uuid, exc)
+                # Search in cached list for this service
+                services = await _get_services()
+                srv = next((s for s in services if s.uuid == res_uuid), None)
+                if not srv:
+                    # Last resort: minimal object
+                    from bot.services.models import Service as SvcModel
+                    srv = SvcModel(uuid=res_uuid, name=res_uuid[:12], status=None)
+
             em = status_emoji(srv.status)
             lines = [
                 f"\U0001f9e9 **{srv.name}**",
