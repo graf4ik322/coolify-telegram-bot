@@ -389,7 +389,7 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
             if fqdn_val:
                 lines.append(f"\U0001f310 [{fqdn_val}](https://{fqdn_val})")
             if obj.description:
-                lines.append(f"\n_{obj.description[:300]}_")
+                lines.append(f"\n{obj.description[:300]}")
             if obj.git_repository:
                 lines.append(f"\n\U0001f4c2 `{obj.git_repository}`")
                 if obj.git_branch:
@@ -425,7 +425,7 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
                 f"`{res_uuid[:8]}...`",
             ]
             if getattr(obj, "description", None):
-                lines.append(f"\n_{obj.description[:300]}_")
+                lines.append(f"\n{obj.description[:300]}")
             if getattr(obj, "service_type", None):
                 lines.append(f"\n\U0001f4cb " + _TYPE + ": `{obj.service_type}`")
 
