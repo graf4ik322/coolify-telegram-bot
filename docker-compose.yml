@@ -13,7 +13,7 @@ services:
       # Telegram
       - BOT_TOKEN=${BOT_TOKEN:?required}
       # Coolify API
-      - COOLIFY_API_URL=${COOLIFY_API_URL:-https://app.coolify.io/api/v1}
+      - COOLIFY_API_URL=${COOLIFY_API_URL:-https://app.coolify.io}
       - COOLIFY_API_TOKEN=${COOLIFY_API_TOKEN:?required}
       # Admin IDs
       - ADMIN_IDS=${ADMIN_IDS:?required}

@@ -46,27 +46,30 @@ async def on_startup() -> None:
     except Exception as exc:
         log.warning("Coolify API unreachable at startup: %s", exc)
 
-    # Set up Telegram bot commands
-    bot = Bot(
-        token=settings.bot_token,
-        default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
-    )
-    commands = [
-        BotCommand(command="start", description="🚀 Запуск и проверка доступа"),
-        BotCommand(command="apps", description="📱 Список приложений"),
-        BotCommand(command="servers", description="🖥 Список серверов"),
-        BotCommand(command="status", description="📊 Карточка приложения"),
-        BotCommand(command="logs", description="📋 Логи приложения"),
-        BotCommand(command="deployments", description="📦 Статусы деплоев"),
-        BotCommand(command="subscribe", description="🔔 Подписаться на алерты"),
-        BotCommand(command="unsubscribe", description="🔕 Отписаться от алертов"),
-        BotCommand(command="mysubs", description="📭 Мои подписки"),
-        BotCommand(command="audit", description="📋 Аудит-лог (Admin)"),
-        BotCommand(command="ping", description="🩺 Проверка здоровья бота"),
-        BotCommand(command="help", description="📖 Справка"),
-    ]
-    await bot.set_my_commands(commands)
-    await bot.close()
+    # Set up Telegram bot commands (non-fatal if fails)
+    try:
+        bot = Bot(
+            token=settings.bot_token,
+            default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
+        )
+        commands = [
+            BotCommand(command="start", description="🚀 Запуск и проверка доступа"),
+            BotCommand(command="apps", description="📱 Список приложений"),
+            BotCommand(command="servers", description="🖥 Список серверов"),
+            BotCommand(command="status", description="📊 Карточка приложения"),
+            BotCommand(command="logs", description="📋 Логи приложения"),
+            BotCommand(command="deployments", description="📦 Статусы деплоев"),
+            BotCommand(command="subscribe", description="🔔 Подписаться на алерты"),
+            BotCommand(command="unsubscribe", description="🔕 Отписаться от алертов"),
+            BotCommand(command="mysubs", description="📭 Мои подписки"),
+            BotCommand(command="audit", description="📋 Аудит-лог (Admin)"),
+            BotCommand(command="ping", description="🩺 Проверка здоровья бота"),
+            BotCommand(command="help", description="📖 Справка"),
+        ]
+        await bot.set_my_commands(commands)
+        await bot.close()
+    except Exception as exc:
+        log.warning("Bot command setup failed (non-fatal): %s", exc)
 
     log.info("Bot startup complete.")
 

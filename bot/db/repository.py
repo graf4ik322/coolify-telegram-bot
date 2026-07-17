@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -13,6 +13,26 @@ from bot.config import settings
 from bot.db.models import AuditLog, Base, Subscription, User
 
 log = logging.getLogger(__name__)
+
+
+def _ensure_db_dir() -> None:
+    """Create the database directory if it doesn't exist.
+
+    Prevents 'unable to open database file' when SQLite tries to create
+    the DB file in a non-existent directory.
+    """
+    # Parse path from sqlite+aiosqlite:///path/to/db
+    raw = settings.database_url
+    if raw.startswith("sqlite"):
+        # Extract path after file:// or /// or :///
+        path_part = raw.split("///", 1)[-1] if "///" in raw else raw.split("://", 1)[-1]
+        if path_part and not path_part.startswith(":"):  # not in-memory
+            db_dir = Path(path_part).parent
+            db_dir.mkdir(parents=True, exist_ok=True)
+            log.info("Database directory ensured: %s", db_dir)
+
+
+_ensure_db_dir()
 
 _engine = create_async_engine(settings.database_url, echo=False)
 _session_factory = async_sessionmaker(_engine, expire_on_commit=False)

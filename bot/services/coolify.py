@@ -37,7 +37,7 @@ class CoolifyClient:
     (including network errors mapped to 503).
     """
 
-    BASE_URL = settings.coolify_api_url.rstrip("/")
+    BASE_URL = settings.coolify_api_url.rstrip("/") + "/api/v1"
 
     def __init__(self) -> None:
         self._session: aiohttp.ClientSession | None = None
@@ -49,6 +49,7 @@ class CoolifyClient:
             self._session = aiohttp.ClientSession(
                 headers={
                     "Authorization": f"Bearer {settings.coolify_api_token}",
+                    "Accept": "application/json",
                     "Content-Type": "application/json",
                 },
                 timeout=aiohttp.ClientTimeout(total=10),
@@ -78,9 +79,16 @@ class CoolifyClient:
                     except Exception:
                         msg = await resp.text()
                     raise CoolifyClientError(resp.status, msg)
+
+                content_type = resp.content_type or ""
+                if "application/json" in content_type:
+                    return await resp.json()
+                # Non-JSON response (health, version return text/html)
+                text = await resp.text()
                 if resp.status == 204:
                     return None
-                return await resp.json()
+                # Return as string — caller can handle
+                return text
         except CoolifyClientError:
             raise
         except aiohttp.ClientError as exc:
@@ -90,10 +98,14 @@ class CoolifyClient:
 
     async def health(self) -> HealthResponse:
         data = await self._request("GET", "/health")
+        if isinstance(data, str):
+            return HealthResponse(status=data.strip())
         return HealthResponse(**data)
 
     async def version(self) -> str:
         data = await self._request("GET", "/version")
+        if isinstance(data, str):
+            return data.strip()
         return data.get("version", "unknown")
 
     # ── Teams ──────────────────────────────────────────────────────────────

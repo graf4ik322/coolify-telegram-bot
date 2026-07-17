@@ -21,14 +21,14 @@ class Settings(BaseSettings):
     bot_token: str
 
     # Coolify API
-    coolify_api_url: str = "https://app.coolify.io/api/v1"
+    coolify_api_url: str = "https://app.coolify.io"
     coolify_api_token: str
 
     # Redis (optional — without it rate-limit uses in-memory fallback)
     redis_url: str | None = None
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///data/bot.db"
+    database_url: str = "sqlite+aiosqlite:///app/data/bot.db"
 
     # Admin user IDs (comma-separated)
     admin_ids: str = ""
