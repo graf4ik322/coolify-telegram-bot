@@ -140,19 +140,22 @@ async def main() -> None:
 
     @dp.callback_query(lambda c: c.data.startswith("menu:"))
     async def menu_nav(cb: CallbackQuery) -> None:
-        """Route menu selections to appropriate handlers."""
+        """Route menu selections to actual commands."""
         target = cb.data.split(":", 1)[1]
-        mapping = {
-            "apps": "apps",
-            "servers": "servers",
-            "deployments": "deployments",
-            "subscriptions": "mysubs",
-            "help": "help",
+
+        # Map menu targets to command-style responses
+        mappings = {
+            "apps_go": "📱 Используйте команду /apps",
+            "projects_go": "📋 Используйте команду /projects",
+            "servers_go": "🖥 Используйте команду /servers",
+            "deployments_go": "📦 Используйте команду /deployments",
+            "subscriptions_go": "🔔 Используйте команду /mysubs",
+            "help": "📖 Используйте команду /help",
         }
-        if target in mapping:
-            # Simulate command by editing message content
-            # The actual handler will be called from the command
-            await cb.answer(f"Используйте /{mapping[target]}")
+
+        hint = mappings.get(target)
+        if hint:
+            await cb.answer(hint, show_alert=False)
         else:
             await cb.answer()
 

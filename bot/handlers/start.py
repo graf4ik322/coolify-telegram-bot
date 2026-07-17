@@ -6,7 +6,7 @@ import logging
 
 from aiogram import Router
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from bot.config import settings
 from bot.db.models import User
@@ -40,21 +40,22 @@ async def cmd_ping(message: Message) -> None:
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, db_user: User) -> None:
-    """Welcome message for authorised users."""
+    """Welcome message with inline main menu."""
     role_emoji = {"admin": "🛡️", "operator": "🔧", "viewer": "👁️"}
     emoji = role_emoji.get(db_user.role, "👤")
 
-    await message.answer(
-        f"{emoji} Привет, {message.from_user.full_name}!\n\n"
-        f"**Coolify Telegram Bot** — приборная панель управления.\n"
-        f"Ваша роль: **{db_user.role.upper()}**\n\n"
-        "**Команды:**\n"
-        "• `/apps` — список приложений и их статусы\n"
-        "• `/servers` — список серверов и health\n"
-        "• `/status <app>` — карточка приложения\n"
-        "• `/logs <app>` — логи приложения\n"
-        "• `/deployments` — активные деплои\n"
-        "• `/subscribe <app>` — подписка на алерты\n"
-        "• `/help` — полная справка\n\n"
-        "_Операции Restart/Stop/Start — через inline-кнопки в карточке приложения._",
+    text = (
+        f"{emoji} **Coolify Bot** — {db_user.role.upper()}\n\n"
+        f"_Приборная панель + рычаг перезапуска_"
     )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📋 Приложения", callback_data="menu:apps_go")],
+        [InlineKeyboardButton(text="📋 Проекты", callback_data="menu:projects_go")],
+        [InlineKeyboardButton(text="🖥 Серверы", callback_data="menu:servers_go")],
+        [InlineKeyboardButton(text="📦 Деплои", callback_data="menu:deployments_go")],
+        [InlineKeyboardButton(text="🔔 Подписки", callback_data="menu:subscriptions_go")],
+        [InlineKeyboardButton(text="🩺 Здоровье", callback_data="menu:ping")],
+        [InlineKeyboardButton(text="📖 Помощь", callback_data="menu:help")],
+    ])
+
+    await message.answer(text, reply_markup=kb)
