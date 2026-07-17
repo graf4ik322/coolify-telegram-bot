@@ -434,6 +434,11 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
         await cb.message.edit_text(text, reply_markup=kb)
     except Exception:
         log.exception("Error loading resource %s/%s", res_type, res_uuid)
+        # Try to get more details
+        err_info = ""
+        import traceback
+        err_info = traceback.format_exc()[:200]
+        log.error("Traceback details: %s", err_info)
         text, kb = error_text(_ERR_INFO, retry_callback=f"res:{res_type}:{res_uuid}")
         await cb.message.edit_text(text, reply_markup=kb)
 

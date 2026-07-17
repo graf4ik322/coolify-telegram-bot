@@ -81,9 +81,11 @@ class Application(BaseModel):
 class Service(BaseModel):
     """Coolify docker-compose service resource."""
 
+    model_config = {"extra": "ignore"}
+
     id: int | None = None
-    uuid: str
-    name: str
+    uuid: str | None = None
+    name: str | None = None
     description: str | None = None
     environment_id: int | None = None
     server_id: int | None = None
