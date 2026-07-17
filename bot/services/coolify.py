@@ -13,8 +13,13 @@ from bot.services.models import (
     ApplicationDeploymentQueue,
     CoolifyError,
     DeployResponse,
+    Environment,
     HealthResponse,
+    Project,
+    ResourceSummary,
+    ResourceType,
     Server,
+    Service,
     Team,
 )
 
@@ -188,6 +193,62 @@ class CoolifyClient:
     async def get_server(self, uuid: str) -> Server:
         data = await self._request("GET", f"/servers/{uuid}")
         return Server(**data)
+
+    # ── Projects ────────────────────────────────────────────────────────────
+
+    async def list_projects(self) -> list[Project]:
+        """List all projects."""
+        data = await self._request("GET", "/projects")
+        return [Project(**p) for p in data]
+
+    async def get_project(self, uuid: str) -> Project:
+        """Get a project by UUID."""
+        data = await self._request("GET", f"/projects/{uuid}")
+        return Project(**data)
+
+    async def list_environments(self, project_uuid: str) -> list[Environment]:
+        """List all environments in a project."""
+        data = await self._request("GET", f"/projects/{project_uuid}/environments")
+        return [Environment(**env) for env in data]
+
+    async def get_environment(
+        self, project_uuid: str, env_name_or_uuid: str
+    ) -> Environment:
+        """Get an environment by name or UUID within a project."""
+        data = await self._request(
+            "GET", f"/projects/{project_uuid}/{env_name_or_uuid}"
+        )
+        return Environment(**data)
+
+    # ── Services ────────────────────────────────────────────────────────────
+
+    async def list_services(self) -> list[Service]:
+        """List all docker-compose services."""
+        data = await self._request("GET", "/services")
+        return [Service(**s) for s in data]
+
+    async def get_service(self, uuid: str) -> Service:
+        """Get a service by UUID."""
+        data = await self._request("GET", f"/services/{uuid}")
+        return Service(**data)
+
+    async def start_service(self, uuid: str) -> dict[str, Any]:
+        """Start a service."""
+        return await self._request("GET", f"/services/{uuid}/start")
+
+    async def stop_service(self, uuid: str) -> dict[str, Any]:
+        """Stop a service."""
+        return await self._request("GET", f"/services/{uuid}/stop")
+
+    async def restart_service(self, uuid: str) -> dict[str, Any]:
+        """Restart a service."""
+        return await self._request("GET", f"/services/{uuid}/restart")
+
+    # ── Resource helpers ────────────────────────────────────────────────────
+
+    async def get_resources_by_server(self, server_uuid: str) -> list[dict[str, Any]]:
+        """Get resources by server UUID."""
+        return await self._request("GET", f"/servers/{server_uuid}/resources")
 
     # ── Convenience for all resources ──────────────────────────────────────
 

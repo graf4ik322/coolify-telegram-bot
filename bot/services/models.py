@@ -8,6 +8,50 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+# ── Resource type constants ──────────────────────────────────────────────────
+
+class ResourceType:
+    APPLICATION = "application"
+    SERVICE = "service"
+    DATABASE = "database"
+
+
+# ── Project ──────────────────────────────────────────────────────────────────
+
+class Project(BaseModel):
+    """Coolify project."""
+
+    id: int | None = None
+    uuid: str
+    name: str
+    description: str | None = None
+
+
+# ── Environment ──────────────────────────────────────────────────────────────
+
+class Environment(BaseModel):
+    """Coolify environment within a project."""
+
+    id: int | None = None
+    uuid: str | None = None
+    name: str
+    description: str | None = None
+    project_uuid: str | None = None
+
+
+# ── Resource Summary ─────────────────────────────────────────────────────────
+
+class ResourceSummary(BaseModel):
+    """Lightweight resource reference (used in environment listing)."""
+
+    uuid: str
+    name: str
+    resource_type: str  # application | service | database
+    status: str | None = None
+    description: str | None = None
+    fqdn: str | None = None
+
+
 # ── Application ──────────────────────────────────────────────────────────────
 
 class Application(BaseModel):
@@ -30,6 +74,32 @@ class Application(BaseModel):
     destination_docker: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
+
+
+# ── Service (Docker Compose) ─────────────────────────────────────────────────
+
+class Service(BaseModel):
+    """Coolify docker-compose service resource."""
+
+    id: int | None = None
+    uuid: str
+    name: str
+    description: str | None = None
+    environment_id: int | None = None
+    server_id: int | None = None
+    docker_compose_raw: str | None = None
+    docker_compose: str | None = None
+    destination_type: str | None = None
+    destination_id: int | None = None
+    connect_to_docker_network: bool | None = None
+    is_container_label_escape_enabled: bool | None = None
+    is_container_label_readonly_enabled: bool | None = None
+    config_hash: str | None = None
+    service_type: str | None = None
+    status: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    deleted_at: str | None = None
 
 
 # ── Application Deployment Queue ─────────────────────────────────────────────
@@ -105,7 +175,7 @@ class DeployResponse(BaseModel):
     message: str = ""
 
 
-# ── Generic ──────────────────────────────────────────────────────────────────
+# ── CoolifyError ─────────────────────────────────────────────────────────────
 
 class CoolifyError(BaseModel):
     """Standard Coolify API error."""
