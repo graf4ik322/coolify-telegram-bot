@@ -1,0 +1,19 @@
+services:
+  bot:
+    build: .
+    container_name: coolify-telegram-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - bot_data:/app/data
+    ports:
+      - "8080:8080"
+    networks:
+      - coolify-bot-net
+
+volumes:
+  bot_data:
+
+networks:
+  coolify-bot-net:
+    driver: bridge
