@@ -9,39 +9,19 @@ from bot.services.models import Application, ApplicationDeploymentQueue, Server
 def status_emoji(status: str | None) -> str:
     """Map Coolify status to Telegram emoji indicator.
 
-    Handles compound status formats like:
-      - ``running:healthy`` → 🟢
-      - ``running:unhealthy`` → ⚠️
-      - ``running:unknown`` → 🟡
-      - ``exited:...`` → 🔴
+    Rules:
+      - Contains "running" → 🟢 (health/unknown/unhealthy — всё равно зелёный)
+      - Contains "exited"/"stopped" → 🔴
+      - "deploying"/"building"/"queued"/"processing"/"starting" → 🟡
+      - "degraded"/"unhealthy"/"error" (без "running") → ⚠️
     """
     if not status:
         return "⚪"
     s = status.lower().strip()
 
-    # Compound status (e.g. "running:healthy", "exited:1")
-    if ":" in s:
-        parts = s.split(":")
-        container_state = parts[0].strip()
-        health = parts[1].strip() if len(parts) > 1 else ""
-
-        # Check container state first
-        if container_state in ("running",):
-            if health in ("healthy",):
-                return "🟢"
-            if health in ("unhealthy",):
-                return "⚠️"
-            # running:unknown, running:starting, etc.
-            return "🟡"
-        if container_state in ("stopped", "exited"):
-            return "🔴"
-        if container_state in ("deploying", "building", "queued", "processing", "starting"):
-            return "🟡"
-
-    # Simple status
-    if s in ("running", "healthy", "finished"):
+    if "running" in s:
         return "🟢"
-    if s in ("stopped", "exited", "failed", "cancelled"):
+    if "exited" in s or "stopped" in s:
         return "🔴"
     if s in ("deploying", "building", "queued", "processing", "starting"):
         return "🟡"
