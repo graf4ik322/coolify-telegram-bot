@@ -55,6 +55,14 @@ _ACTION_VERBS = {
     "redeploy": "\u043f\u0435\u0440\u0435\u0434\u0435\u043f\u043b\u043e\u0439",
 }
 
+# Infinitive forms for buttons ("что сделать?")
+_ACTION_INF = {
+    "restart": "\u043f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c",
+    "stop": "\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c",
+    "start": "\u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c",
+    "redeploy": "\u043f\u0435\u0440\u0435\u0434\u0435\u043f\u043b\u043e\u0438\u0442\u044c",
+}
+
 # Service action methods mapping
 _SERVICE_ACTIONS = {
     "restart": coolify.restart_service,
@@ -301,6 +309,7 @@ async def resource_action_request(cb: CallbackQuery, db_user: User) -> None:
 
     label = _ACTION_LABELS.get(action, action)
     verb = _ACTION_VERBS.get(action, action)
+    inf = _ACTION_INF.get(action, action)
 
     text = (
         f"⚠️ **Подтвердите действие**\n\n"
@@ -313,7 +322,7 @@ async def resource_action_request(cb: CallbackQuery, db_user: User) -> None:
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(
-                text=f"✅ Да, {verb}",
+                text=f"✅ Да, {inf}",
                 callback_data=f"act_cnf_r:{res_type}:{res_uuid}:{action}",
             ),
             InlineKeyboardButton(
@@ -369,11 +378,12 @@ async def resource_action_confirm(cb: CallbackQuery, db_user: User) -> None:
         )
 
         verb = _ACTION_VERBS.get(action, action)
+        result_msg = result.get("message", str(result)) if isinstance(result, dict) else str(result)
         await cb.message.edit_text(
-            f"✅ **{verb.title()} выполнен**\n\n"
+            f"✅ **Готово**\n\n"
+            f"{result_msg}\n"
             f"Тип: {res_type.upper()}\n"
-            f"Ресурс: `{res_uuid[:8]}...`\n"
-            f"Результат: `{result}`",
+            f"Ресурс: `{res_uuid[:8]}...`",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(
                     text="🔙 К ресурсу",
