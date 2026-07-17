@@ -62,6 +62,7 @@ async def on_startup() -> None:
         BotCommand(command="unsubscribe", description="🔕 Отписаться от алертов"),
         BotCommand(command="mysubs", description="📭 Мои подписки"),
         BotCommand(command="audit", description="📋 Аудит-лог (Admin)"),
+        BotCommand(command="ping", description="🩺 Проверка здоровья бота"),
         BotCommand(command="help", description="📖 Справка"),
     ]
     await bot.set_my_commands(commands)

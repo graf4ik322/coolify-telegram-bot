@@ -11,6 +11,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from bot.db.models import User
 from bot.services.coolify import CoolifyClientError, coolify
 from bot.utils.formatting import format_server_short, status_emoji
+from bot.utils.states import empty_state, error_text, loading_text, nav_main_only
 
 router = Router()
 log = logging.getLogger(__name__)
@@ -19,15 +20,23 @@ log = logging.getLogger(__name__)
 @router.message(Command("servers"))
 async def cmd_servers(message: Message, db_user: User) -> None:
     """Show list of all servers."""
+    msg = await message.answer(loading_text("Загружаю список серверов"))
+
     try:
         servers = await coolify.list_servers()
         health = await coolify.health()
     except CoolifyClientError as exc:
-        await message.answer(f"❌ Ошибка Coolify API: {exc.message}")
+        text, kb = error_text(exc.message, code=str(exc.status), retry_callback="refresh:servers")
+        await msg.edit_text(text, reply_markup=kb)
         return
     except Exception:
         log.exception("Error fetching servers")
-        await message.answer("❌ Не удалось получить список серверов.")
+        text, kb = error_text("Не удалось получить список серверов.", retry_callback="refresh:servers")
+        await msg.edit_text(text, reply_markup=kb)
+        return
+
+    if not servers:
+        await msg.edit_text(empty_state("servers"), reply_markup=nav_main_only())
         return
 
     lines = [f"🖥 **Серверы** ({len(servers)}):\n"]

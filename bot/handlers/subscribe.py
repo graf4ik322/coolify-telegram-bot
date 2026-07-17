@@ -13,6 +13,7 @@ from bot.db.repository import add_subscription, get_audit_logs, get_subscription
 from bot.services.coolify import CoolifyClientError, coolify
 from bot.utils.app_resolver import resolve_app
 from bot.utils.formatting import fmt_relative_time
+from bot.utils.states import empty_state, error_text
 
 router = Router()
 log = logging.getLogger(__name__)
@@ -88,7 +89,7 @@ async def cmd_mysubs(message: Message, db_user: User) -> None:
     """List your active subscriptions."""
     subs = await get_subscriptions(db_user.telegram_id)
     if not subs:
-        await message.answer("📭 У вас нет активных подписок.\n`/subscribe <app>` для добавления.")
+        await message.answer(empty_state("subscriptions"))
         return
 
     lines = ["🔔 **Ваши подписки:**\n"]
@@ -108,7 +109,7 @@ async def cmd_audit(message: Message, db_user: User) -> None:
 
     entries = await get_audit_logs(limit=20)
     if not entries:
-        await message.answer("📭 Аудит-лог пуст.")
+        await message.answer(empty_state("audit"))
         return
 
     lines = ["📋 **Аудит-лог** (последние 20):\n"]

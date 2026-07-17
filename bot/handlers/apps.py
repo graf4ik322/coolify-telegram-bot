@@ -18,6 +18,13 @@ from bot.services.coolify import CoolifyClientError, coolify
 from bot.utils.cache import TTLCache
 from bot.utils.formatting import format_app_card, format_app_short
 from bot.utils.pagination import Pagination
+from bot.utils.states import (
+    empty_state,
+    error_text,
+    loading_text,
+    nav_back_main,
+    nav_retry_back,
+)
 
 router = Router()
 log = logging.getLogger(__name__)
@@ -42,18 +49,23 @@ async def _get_apps() -> list:
 @router.message(Command("apps"))
 async def cmd_apps(message: Message, db_user: User) -> None:
     """Show paginated list of applications (sends NEW message)."""
+    # Loading state
+    msg = await message.answer(loading_text("Загружаю список приложений"))
+
     try:
         apps = await _get_apps()
     except CoolifyClientError as exc:
-        await message.answer(f"❌ Ошибка Coolify API: {exc.message}")
+        text, kb = error_text(exc.message, code=str(exc.status), retry_callback="retry:apps")
+        await msg.edit_text(text, reply_markup=kb)
         return
     except Exception:
         log.exception("Unexpected error listing apps")
-        await message.answer("❌ Не удалось получить список приложений.")
+        text, kb = error_text("Не удалось получить список приложений.", retry_callback="retry:apps")
+        await msg.edit_text(text, reply_markup=kb)
         return
 
     if not apps:
-        await message.answer("📭 Нет приложений.")
+        await msg.edit_text(empty_state("apps"), reply_markup=nav_back_main())
         return
 
     pag = Pagination(items=apps, per_page=5, format_fn=format_app_short)
@@ -84,12 +96,14 @@ async def app_detail(cb: CallbackQuery, db_user: User) -> None:
         deploys = await coolify.list_deployments()
         latest = next((d for d in deploys if d.application_uuid == uuid), None)
     except CoolifyClientError as exc:
-        await cb.message.edit_text(f"❌ Ошибка: {exc.message}")
+        text, kb = error_text(exc.message, code=str(exc.status))
+        await cb.message.edit_text(text, reply_markup=kb)
         await cb.answer()
         return
     except Exception:
         log.exception("Error fetching app detail")
-        await cb.message.edit_text("❌ Не удалось получить данные приложения.")
+        text, kb = error_text("Не удалось получить данные приложения.")
+        await cb.message.edit_text(text, reply_markup=kb)
         await cb.answer()
         return
 
@@ -160,3 +174,12 @@ async def back_to_app_card(cb: CallbackQuery, db_user: User) -> None:
     # Re-trigger app detail
     cb.data = f"app:{uuid}"
     await app_detail(cb, db_user)
+
+
+@router.callback_query(F.data == "retry:apps")
+async def retry_apps(cb: CallbackQuery, db_user: User) -> None:
+    """Retry loading app list after error."""
+    await cb.answer()
+    # Clear cache
+    _app_cache.clear()
+    await back_to_app_list(cb, db_user)

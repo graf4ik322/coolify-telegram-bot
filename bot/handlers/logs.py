@@ -14,6 +14,7 @@ from bot.db.models import User
 from bot.services.coolify import CoolifyClientError, coolify
 from bot.utils.app_resolver import resolve_app
 from bot.utils.formatting import format_logs
+from bot.utils.states import empty_state, error_text, loading_text, nav_back_main
 
 router = Router()
 log = logging.getLogger(__name__)
@@ -32,32 +33,30 @@ async def cmd_logs(message: Message, db_user: User, command: CommandObject) -> N
 
     app_uuid = await resolve_app(arg)
     if not app_uuid:
-        await message.answer(f"❌ Приложение «{arg}» не найдено.")
+        await message.answer(f"❌ Приложение «{arg}» не найдено.", reply_markup=nav_back_main())
         return
 
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="back:apps")],
-        ]
-    )
+    msg = await message.answer(loading_text("Загружаю логи"))
 
     try:
         logs = await coolify.get_application_logs(app_uuid, lines=settings.logs_default_lines)
     except CoolifyClientError as exc:
-        await message.answer(f"❌ Ошибка получения логов: {exc.message}")
+        text, kb = error_text(exc.message, code=str(exc.status))
+        await msg.edit_text(text, reply_markup=kb)
         return
     except Exception:
         log.exception("Error fetching logs for %s", arg)
-        await message.answer("❌ Не удалось получить логи.", reply_markup=kb)
+        text, kb = error_text("Не удалось получить логи.")
+        await msg.edit_text(text, reply_markup=kb)
         return
 
     msg_text, file_content = format_logs(logs)
 
     if file_content:
-        await message.answer(msg_text, reply_markup=kb)
+        await msg.edit_text(msg_text)
         await _send_log_file(message, app_uuid, file_content)
     else:
-        await message.answer(msg_text, reply_markup=kb)
+        await msg.edit_text(msg_text, reply_markup=nav_back_main())
 
 
 @router.callback_query(F.data.startswith("logs:"))
@@ -71,7 +70,8 @@ async def logs_callback(cb: CallbackQuery, db_user: User) -> None:
     try:
         logs = await coolify.get_application_logs(uuid, lines=settings.logs_default_lines)
     except CoolifyClientError as exc:
-        await cb.message.edit_text(f"❌ Ошибка получения логов: {exc.message}")
+        text, kb = error_text(exc.message, code=str(exc.status))
+        await cb.message.edit_text(text, reply_markup=kb)
         await cb.answer()
         return
 

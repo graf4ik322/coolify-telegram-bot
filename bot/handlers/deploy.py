@@ -11,7 +11,8 @@ from aiogram.types import Message
 from bot.db.models import User
 from bot.services.coolify import CoolifyClientError, coolify
 from bot.utils.app_resolver import resolve_app
-from bot.utils.formatting import format_app_card, fmt_deployment_status
+from bot.utils.formatting import format_app_card, fmt_deployment_status, fmt_relative_time
+from bot.utils.states import empty_state, error_text, loading_text, nav_back_main, nav_main_only
 
 router = Router()
 log = logging.getLogger(__name__)
@@ -28,45 +29,54 @@ async def cmd_status(message: Message, db_user: User, command: CommandObject) ->
         await message.answer("❌ Укажите имя или UUID приложения.\nПример: `/status my-app`")
         return
 
+    msg = await message.answer(loading_text("Загружаю статус"))
+
     try:
         # Try resolving via shared utility
         app_uuid = await resolve_app(arg)
         if not app_uuid:
-            await message.answer(f"❌ Приложение «{arg}» не найдено.")
+            await msg.edit_text(f"❌ Приложение «{arg}» не найдено.", reply_markup=nav_back_main())
             return
         app = await coolify.get_application(app_uuid)
 
         deploys = await coolify.list_deployments()
         latest = None
         for d in deploys:
-            if d.application_uuid == app.uuid:
+            if d.application_uuid == app_uuid:
                 latest = d
                 break
 
         text = format_app_card(app, latest)
-        await message.answer(text)
+        await msg.edit_text(text)
     except CoolifyClientError as exc:
-        await message.answer(f"❌ Ошибка Coolify API: {exc.message}")
+        await msg.edit_text(f"❌ Ошибка Coolify API: {exc.message}")
     except Exception:
         log.exception("Error in status command")
-        await message.answer("❌ Не удалось получить статус приложения.")
+        await msg.edit_text("❌ Не удалось получить статус приложения.")
 
 
 @router.message(Command("deployments"))
 async def cmd_deployments(message: Message, db_user: User) -> None:
     """List active/recent deployments."""
+    msg = await message.answer(loading_text("Загружаю деплои"))
+
     try:
         deploys = await coolify.list_deployments()
     except CoolifyClientError as exc:
-        await message.answer(f"❌ Ошибка Coolify API: {exc.message}")
+        text, kb = error_text(exc.message, code=str(exc.status))
+        await msg.edit_text(text, reply_markup=kb)
         return
     except Exception:
         log.exception("Error listing deployments")
-        await message.answer("❌ Не удалось получить список деплоев.")
+        text, kb = error_text("Не удалось получить список деплоев.")
+        await msg.edit_text(text, reply_markup=kb)
         return
 
     if not deploys:
-        await message.answer("📭 Нет активных деплоев.")
+        await msg.edit_text(
+            empty_state("deployments"),
+            reply_markup=nav_back_main(),
+        )
         return
 
     lines = ["📦 **Деплои:**\n"]
@@ -74,4 +84,52 @@ async def cmd_deployments(message: Message, db_user: User) -> None:
         lines.append(fmt_deployment_status(d))
         lines.append("")
 
-    await message.answer("\n".join(lines))
+    await msg.edit_text(
+        "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Обновить", callback_data="deploy:refresh")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="menu:main")],
+            ]
+        ),
+    )
+
+
+@router.callback_query(lambda c: c.data == "deploy:refresh")
+async def deploy_refresh(cb: CallbackQuery, db_user: User) -> None:
+    """Refresh deployment list (live update via editMessageText)."""
+    try:
+        deploys = await coolify.list_deployments()
+    except CoolifyClientError as exc:
+        text, kb = error_text(exc.message, code=str(exc.status))
+        await cb.message.edit_text(text, reply_markup=kb)
+        await cb.answer()
+        return
+
+    if not deploys:
+        await cb.message.edit_text(
+            empty_state("deployments"),
+            reply_markup=nav_main_only(),
+        )
+        await cb.answer()
+        return
+
+    lines = ["📦 **Деплои (live):**\n"]
+    for d in deploys:
+        lines.append(fmt_deployment_status(d))
+        lines.append("")
+
+    # Show last refresh time
+    from datetime import datetime
+    lines.append(f"_Обновлено: {datetime.now().strftime('%H:%M:%S')}_")
+
+    await cb.message.edit_text(
+        "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Обновить", callback_data="deploy:refresh")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="menu:main")],
+            ]
+        ),
+    )
+    await cb.answer()
