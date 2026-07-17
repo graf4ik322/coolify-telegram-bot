@@ -387,17 +387,17 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
                 f"`{res_uuid[:8]}...`",
             ]
             if fqdn_val:
-                lines.append(f"\\U0001f310 [{fqdn_val}](https://{fqdn_val})")
+                lines.append(f"\U0001f310 [{fqdn_val}](https://{fqdn_val})")
             if obj.description:
-                lines.append(f"\\n_{obj.description[:300]}_")
+                lines.append(f"\n_{obj.description[:300]}_")
             if obj.git_repository:
-                lines.append(f"\\n\\U0001f4c2 `{obj.git_repository}`")
+                lines.append(f"\n\U0001f4c2 `{obj.git_repository}`")
                 if obj.git_branch:
-                    lines.append(f"\\U0001f33f `{obj.git_branch}`")
+                    lines.append(f"\U0001f33f `{obj.git_branch}`")
             if obj.docker_registry_image_name:
-                lines.append(f"\\U0001f433 `{obj.docker_registry_image_name}:{obj.docker_registry_image_tag or 'latest'}`")
+                lines.append(f"\U0001f433 `{obj.docker_registry_image_name}:{obj.docker_registry_image_tag or 'latest'}`")
             if latest:
-                lines.append(f"\\n\\U0001f504 " + _DEPLOY + ": **{latest.status}**")
+                lines.append(f"\n\U0001f504 " + _DEPLOY + ": **{latest.status}**")
                 if latest.finished_at:
                     lines.append(f"\\u23f1 {fmt_relative_time(latest.finished_at)}")
 
@@ -425,15 +425,15 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
                 f"`{res_uuid[:8]}...`",
             ]
             if getattr(obj, "description", None):
-                lines.append(f"\\n_{obj.description[:300]}_")
+                lines.append(f"\n_{obj.description[:300]}_")
             if getattr(obj, "service_type", None):
-                lines.append(f"\\n\\U0001f4cb " + _TYPE + ": `{obj.service_type}`")
+                lines.append(f"\n\U0001f4cb " + _TYPE + ": `{obj.service_type}`")
 
         else:
-            lines = [f"\\U0001f4ce " + _RESOURCE + " (`{res_uuid[:8]}...`)\\n\\n" + _TYPE + ": {res_type}"]
+            lines = [f"\U0001f4ce " + _RESOURCE + " (`{res_uuid[:8]}...`)\n\n" + _TYPE + ": {res_type}"]
 
         # ── Action buttons (same for apps and services) ─────────────────────
-        lines.append(f"\\n\\n**" + _ACTIONS + ":**")
+        lines.append(f"\n\n**" + _ACTIONS + ":**")
 
         kb_rows = [
             [
@@ -441,17 +441,17 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
                 InlineKeyboardButton(text="\\u23f9 Stop", callback_data=f"act_r:{res_type}:{res_uuid}:stop"),
             ],
             [
-                InlineKeyboardButton(text="\\U0001f504 Restart", callback_data=f"act_r:{res_type}:{res_uuid}:restart"),
+                InlineKeyboardButton(text="\U0001f504 Restart", callback_data=f"act_r:{res_type}:{res_uuid}:restart"),
             ],
             [
-                InlineKeyboardButton(text="\\U0001f4cb Logs", callback_data=f"log_r:{res_type}:{res_uuid}"),
+                InlineKeyboardButton(text="\U0001f4cb Logs", callback_data=f"log_r:{res_type}:{res_uuid}"),
             ],
             [InlineKeyboardButton(text="\\u2b05\\ufe0f " + _BACK, callback_data="menu:projects")],
-            [InlineKeyboardButton(text="\\U0001f3e0 " + _MAIN_MENU, callback_data="menu:main")],
+            [InlineKeyboardButton(text="\U0001f3e0 " + _MAIN_MENU, callback_data="menu:main")],
         ]
 
         await cb.message.edit_text(
-            "\\n".join(lines),
+            "\n".join(lines),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=kb_rows),
         )
 
@@ -461,7 +461,7 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
         await cb.message.edit_text(text, reply_markup=kb)
     except Exception:
         log.exception("Unhandled exception in resource_detail(%s/%s)", res_type, res_uuid)
-        text, kb = error_text(_ERR_INFO + "\\n\\n_Смотри логи контейнера для деталей_", retry_callback=f"res:{res_type}:{res_uuid}")
+        text, kb = error_text(_ERR_INFO + "\n\n_Смотри логи контейнера для деталей_", retry_callback=f"res:{res_type}:{res_uuid}")
         await cb.message.edit_text(text, reply_markup=kb)
 
 
