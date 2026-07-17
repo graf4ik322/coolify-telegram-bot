@@ -8,6 +8,7 @@ Supports both /projects command (sends new message) and callback navigation (edi
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 
@@ -17,6 +18,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 
 from bot.db.models import User
 from bot.services.coolify import CoolifyClientError, coolify
+from bot.services.models import Application
 from bot.utils.cache import TTLCache
 from bot.utils.formatting import status_emoji, fmt_relative_time
 from bot.utils.states import (
@@ -33,6 +35,34 @@ log = logging.getLogger(__name__)
 _projects_cache = TTLCache[str, list](default_ttl=60.0, max_size=5)
 _apps_all_cache = TTLCache[str, list](default_ttl=60.0, max_size=5)
 _services_cache = TTLCache[str, list](default_ttl=60.0, max_size=5)
+
+
+async def _enrich_status(items: list) -> list:
+    """Fetch full details for items with missing status (parallel, with timeout)."""
+    need = [i for i in items if not getattr(i, 'status', None)]
+    if not need:
+        return items
+
+    async def fetch(item):
+        try:
+            if isinstance(item, Application):
+                return await coolify.get_application(item.uuid)
+            elif hasattr(item, 'uuid'):
+                return await coolify.get_service(item.uuid)
+        except CoolifyClientError:
+            pass
+        return None
+
+    results = await asyncio.gather(*[fetch(i) for i in need], return_exceptions=True)
+    enriched = {}
+    for i, item in enumerate(need):
+        r = results[i]
+        if isinstance(r, Exception):
+            log.debug("Failed to enrich %s: %s", item.uuid, r)
+        elif r is not None:
+            enriched[item.uuid] = r
+
+    return [enriched.get(i.uuid, i) for i in items]
 
 # Russian UI strings
 _LOADING_PROJECTS = "Загружаю проекты"
@@ -79,6 +109,7 @@ async def _get_apps() -> list:
     if cached is not None:
         return cached
     apps = await coolify.list_applications()
+    apps = await _enrich_status(apps)
     _apps_all_cache["app_list"] = apps
     return apps
 
@@ -88,6 +119,7 @@ async def _get_services() -> list:
     if cached is not None:
         return cached
     services = await coolify.list_services()
+    services = await _enrich_status(services)
     _services_cache["service_list"] = services
     return services
 
