@@ -42,17 +42,17 @@ _ACTIONS = {
 }
 
 _ACTION_LABELS = {
-    "restart": "\U0001f504 Restart",
-    "stop": "\u23f9 Stop",
-    "start": "\u25b6\ufe0f Start",
-    "redeploy": "\U0001f4e6 Redeploy",
+    "restart": "\U0001f504 \u041f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c",
+    "stop": "\u23f9 \u041e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c",
+    "start": "\u25b6\ufe0f \u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c",
+    "redeploy": "\U0001f4e6 \u041f\u0435\u0440\u0435\u0434\u0435\u043f\u043b\u043e\u0438\u0442\u044c",
 }
 
 _ACTION_VERBS = {
-    "restart": "\u0440\u0435\u0441\u0442\u0430\u0440\u0442",
+    "restart": "\u043f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u043a",
     "stop": "\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0443",
     "start": "\u0437\u0430\u043f\u0443\u0441\u043a",
-    "redeploy": "\u0440\u0435\u0434\u0435\u043f\u043b\u043e\u0439",
+    "redeploy": "\u043f\u0435\u0440\u0435\u0434\u0435\u043f\u043b\u043e\u0439",
 }
 
 # Service action methods mapping
@@ -63,7 +63,7 @@ _SERVICE_ACTIONS = {
 }
 
 
-@router.callback_query(F.data.startswith("act:"))
+@router.callback_query(F.data.startswith("act:"), ~F.data.startswith("act_r:"))
 async def action_request(cb: CallbackQuery, db_user: User) -> None:
     """Handle action button press — show confirmation dialog."""
     parts = cb.data.split(":", 2)

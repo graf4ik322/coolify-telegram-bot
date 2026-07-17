@@ -399,7 +399,7 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
             if latest:
                 lines.append(f"\n\U0001f504 " + _DEPLOY + ": **{latest.status}**")
                 if latest.finished_at:
-                    lines.append(f"\\u23f1 {fmt_relative_time(latest.finished_at)}")
+                    lines.append(f"\u23f1 {fmt_relative_time(latest.finished_at)}")
 
         elif res_type == "service":
             # Fetch service detail — fallback to list data on failure
@@ -437,16 +437,16 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
 
         kb_rows = [
             [
-                InlineKeyboardButton(text="\\u25b6\\ufe0f Start", callback_data=f"act_r:{res_type}:{res_uuid}:start"),
-                InlineKeyboardButton(text="\\u23f9 Stop", callback_data=f"act_r:{res_type}:{res_uuid}:stop"),
+                InlineKeyboardButton(text="\u25b6\ufe0f \u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c", callback_data=f"act_r:{res_type}:{res_uuid}:start"),
+                InlineKeyboardButton(text="\u23f9 \u041e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c", callback_data=f"act_r:{res_type}:{res_uuid}:stop"),
             ],
             [
-                InlineKeyboardButton(text="\U0001f504 Restart", callback_data=f"act_r:{res_type}:{res_uuid}:restart"),
+                InlineKeyboardButton(text="\U0001f504 \u041f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c", callback_data=f"act_r:{res_type}:{res_uuid}:restart"),
             ],
             [
-                InlineKeyboardButton(text="\U0001f4cb Logs", callback_data=f"log_r:{res_type}:{res_uuid}"),
+                InlineKeyboardButton(text="\U0001f4cb \u041b\u043e\u0433\u0438", callback_data=f"log_r:{res_type}:{res_uuid}"),
             ],
-            [InlineKeyboardButton(text="\\u2b05\\ufe0f " + _BACK, callback_data="menu:projects")],
+            [InlineKeyboardButton(text="\u2b05\ufe0f " + _BACK, callback_data="menu:projects")],
             [InlineKeyboardButton(text="\U0001f3e0 " + _MAIN_MENU, callback_data="menu:main")],
         ]
 
