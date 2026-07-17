@@ -12,13 +12,18 @@ from typing import Any, Awaitable, Callable
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, Update
 
-from bot.db.repository import get_user
+from bot.config import settings
+from bot.db.repository import get_user, upsert_user
 
 log = logging.getLogger(__name__)
 
 
 class AuthMiddleware(BaseMiddleware):
-    """Reject updates from users not in the whitelist."""
+    """Reject updates from users not in the whitelist.
+
+    Falls back to ``ADMIN_IDS`` from config: if an admin ID from the env
+    is not yet in the database, they are auto-provisioned as ``admin`` role.
+    """
 
     async def __call__(
         self,
@@ -29,16 +34,18 @@ class AuthMiddleware(BaseMiddleware):
         if isinstance(event, Update):
             user_id = self._extract_user_id(event)
             if user_id is None:
-                # Bot-only or no user context — allow through
                 return await handler(event, data)
 
             user = await get_user(user_id)
             if user is None:
-                # Silently ignore unknown users
-                log.info("Rejected unknown user: %d", user_id)
-                return None
+                # Not in DB — check ADMIN_IDS fallback
+                if user_id in settings.admin_telegram_ids:
+                    user = await upsert_user(user_id, role="admin")
+                    log.info("Auto-provisioned admin user %d from ADMIN_IDS", user_id)
+                else:
+                    log.info("Rejected unknown user: %d", user_id)
+                    return None
 
-            # Inject user into handler context
             data["db_user"] = user
 
         return await handler(event, data)
