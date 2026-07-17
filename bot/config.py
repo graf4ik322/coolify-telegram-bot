@@ -35,6 +35,7 @@ class Settings(BaseSettings):
 
     # Behaviour
     log_level: str = "INFO"
+    confirm_secret_key: str | None = None
     confirm_ttl_seconds: int = 45
     rate_limit_per_minute: int = 10
     restart_cooldown_seconds: int = 120

@@ -10,6 +10,7 @@ from aiogram.types import Message
 
 from bot.db.models import User
 from bot.services.coolify import CoolifyClientError, coolify
+from bot.utils.app_resolver import resolve_app
 from bot.utils.formatting import format_app_card, fmt_deployment_status
 
 router = Router()
@@ -28,15 +29,12 @@ async def cmd_status(message: Message, db_user: User, command: CommandObject) ->
         return
 
     try:
-        # Try UUID first, then search by name
-        try:
-            app = await coolify.get_application(arg)
-        except CoolifyClientError:
-            apps = await coolify.list_applications()
-            app = next((a for a in apps if a.name.lower() == arg.lower()), None)
-            if not app:
-                await message.answer(f"❌ Приложение «{arg}» не найдено.")
-                return
+        # Try resolving via shared utility
+        app_uuid = await resolve_app(arg)
+        if not app_uuid:
+            await message.answer(f"❌ Приложение «{arg}» не найдено.")
+            return
+        app = await coolify.get_application(app_uuid)
 
         deploys = await coolify.list_deployments()
         latest = None

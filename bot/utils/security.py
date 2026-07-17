@@ -1,13 +1,29 @@
-"""Security utilities — one-time confirmation tokens."""
+"""Security utilities — one-time confirmation tokens.
+
+Uses a dedicated ``CONFIRM_SECRET_KEY`` (separate from the Telegram bot token)
+for HMAC signing. Falls back to ``bot_token`` only if the dedicated key is
+not configured, emitting a warning.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import time
 from dataclasses import dataclass
 
 from bot.config import settings
+
+log = logging.getLogger(__name__)
+
+# Use dedicated secret if available, fall back to bot_token
+_hmac_key: bytes = (settings.confirm_secret_key or settings.bot_token).encode()
+if not settings.confirm_secret_key:
+    log.warning(
+        "CONFIRM_SECRET_KEY not set — using BOT_TOKEN as HMAC key. "
+        "Set CONFIRM_SECRET_KEY for proper separation of secrets."
+    )
 
 
 @dataclass
@@ -34,7 +50,7 @@ def make_confirm_token(action: str, resource_uuid: str, resource_name: str) -> C
     expires_at = time.time() + settings.confirm_ttl_seconds
     raw = f"{action}:{resource_uuid}:{resource_name}:{int(expires_at)}"
     sig = hmac.new(
-        settings.bot_token.encode(),
+        _hmac_key,
         raw.encode(),
         hashlib.sha256,
     ).hexdigest()[:16]
@@ -68,7 +84,7 @@ def verify_confirm_token(token_str: str) -> ConfirmToken | None:
     # Recompute signature
     raw = f"{action}:{resource_uuid}:?:{int(expires_at)}"
     sig_expected = hmac.new(
-        settings.bot_token.encode(),
+        _hmac_key,
         raw.encode(),
         hashlib.sha256,
     ).hexdigest()[:16]

@@ -11,6 +11,7 @@ from aiogram.types import Message
 from bot.db.models import User
 from bot.db.repository import add_subscription, get_audit_logs, get_subscriptions, remove_subscription
 from bot.services.coolify import CoolifyClientError, coolify
+from bot.utils.app_resolver import resolve_app
 from bot.utils.formatting import fmt_relative_time
 
 router = Router()
@@ -31,15 +32,15 @@ async def cmd_subscribe(message: Message, db_user: User, command: CommandObject)
         return
 
     # Resolve app
+    app_uuid = await resolve_app(arg)
+    if not app_uuid:
+        await message.answer(f"❌ Приложение «{arg}» не найдено.")
+        return
+
+    # Fetch app name
     try:
-        try:
-            app = await coolify.get_application(arg)
-        except CoolifyClientError:
-            apps = await coolify.list_applications()
-            app = next((a for a in apps if a.name.lower() == arg.lower()), None)
-            if not app:
-                await message.answer(f"❌ Приложение «{arg}» не найдено.")
-                return
+        app = await coolify.get_application(app_uuid)
+        app_name = app.name
     except CoolifyClientError as exc:
         await message.answer(f"❌ Ошибка Coolify API: {exc.message}")
         return
@@ -47,7 +48,7 @@ async def cmd_subscribe(message: Message, db_user: User, command: CommandObject)
     sub = await add_subscription(
         telegram_id=db_user.telegram_id,
         resource_uuid=app.uuid,
-        resource_name=app.name,
+        resource_name=app_name,
     )
     if sub:
         await message.answer(
@@ -70,24 +71,16 @@ async def cmd_unsubscribe(message: Message, db_user: User, command: CommandObjec
         return
 
     # Resolve app
-    try:
-        try:
-            app = await coolify.get_application(arg)
-        except CoolifyClientError:
-            apps = await coolify.list_applications()
-            app = next((a for a in apps if a.name.lower() == arg.lower()), None)
-            if not app:
-                await message.answer(f"❌ Приложение «{arg}» не найдено.")
-                return
-    except CoolifyClientError as exc:
-        await message.answer(f"❌ Ошибка Coolify API: {exc.message}")
+    app_uuid = await resolve_app(arg)
+    if not app_uuid:
+        await message.answer(f"❌ Приложение «{arg}» не найдено.")
         return
 
-    ok = await remove_subscription(db_user.telegram_id, app.uuid)
+    ok = await remove_subscription(db_user.telegram_id, app_uuid)
     if ok:
-        await message.answer(f"✅ Подписка на **{app.name}** отменена.")
+        await message.answer(f"✅ Подписка на приложение отменена.")
     else:
-        await message.answer(f"ℹ️ Вы не были подписаны на **{app.name}**.")
+        await message.answer(f"ℹ️ Вы не были подписаны на это приложение.")
 
 
 @router.message(Command("mysubs"))

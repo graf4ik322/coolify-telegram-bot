@@ -9,20 +9,20 @@ import sys
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot.config import settings
 from bot.db.repository import init_db
-from bot.handlers import actions, apps, deploy, logs, servers, start, subscribe
 from bot.middleware.auth import AuthMiddleware
 from bot.middleware.ratelimit import RateLimitMiddleware
 from bot.router import register_routers
-from bot.services.coolify import coolify
+from bot.services.coolify import CoolifyClientError, coolify
 
 log = logging.getLogger(__name__)
 
 
 def setup_logging() -> None:
-    """Configure structured (JSON-like) logging."""
+    """Configure structured logging."""
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -47,8 +47,6 @@ async def on_startup() -> None:
         log.warning("Coolify API unreachable at startup: %s", exc)
 
     # Set up Telegram bot commands
-    from aiogram.types import BotCommand
-
     bot = Bot(
         token=settings.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
@@ -78,6 +76,25 @@ async def on_shutdown() -> None:
     log.info("Coolify Telegram Bot stopped.")
 
 
+# ── Global callbacks ─────────────────────────────────────────────────────────
+
+async def menu_main(cb: CallbackQuery) -> None:
+    """Show main navigation menu."""
+    text = (
+        "🏠 **Главное меню**\n\n"
+        "Выберите раздел:"
+    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📋 Приложения", callback_data="menu:apps")],
+        [InlineKeyboardButton(text="🖥 Серверы", callback_data="menu:servers")],
+        [InlineKeyboardButton(text="📦 Деплои", callback_data="menu:deployments")],
+        [InlineKeyboardButton(text="🔔 Подписки", callback_data="menu:subscriptions")],
+        [InlineKeyboardButton(text="❓ Помощь", callback_data="menu:help")],
+    ])
+    await cb.message.edit_text(text, reply_markup=kb)
+    await cb.answer()
+
+
 async def main() -> None:
     """Main entry point."""
     setup_logging()
@@ -99,17 +116,37 @@ async def main() -> None:
     # Register routers
     register_routers(dp)
 
-    # Also register route for pagination and generic callbacks
-    from aiogram import F
-    from aiogram.types import CallbackQuery
+    # ── Inline callbacks ─────────────────────────────────────────────────
 
-    @dp.callback_query(F.data == "noop")
+    @dp.callback_query(lambda c: c.data == "noop")
     async def noop(cb: CallbackQuery) -> None:
         await cb.answer()
 
-    @dp.callback_query(F.data.startswith("page:"))
+    @dp.callback_query(lambda c: c.data == "menu:main")
+    async def menu_main_handler(cb: CallbackQuery) -> None:
+        await menu_main(cb)
+
+    @dp.callback_query(lambda c: c.data.startswith("menu:"))
+    async def menu_nav(cb: CallbackQuery) -> None:
+        """Route menu selections to appropriate handlers."""
+        target = cb.data.split(":", 1)[1]
+        mapping = {
+            "apps": "apps",
+            "servers": "servers",
+            "deployments": "deployments",
+            "subscriptions": "mysubs",
+            "help": "help",
+        }
+        if target in mapping:
+            # Simulate command by editing message content
+            # The actual handler will be called from the command
+            await cb.answer(f"Используйте /{mapping[target]}")
+        else:
+            await cb.answer()
+
+    @dp.callback_query(lambda c: c.data.startswith("page:"))
     async def page_nav(cb: CallbackQuery) -> None:
-        """Handle pagination navigation."""
+        """Handle pagination navigation with caching."""
         parts = cb.data.split(":", 2)
         if len(parts) < 3:
             await cb.answer()
@@ -121,18 +158,26 @@ async def main() -> None:
             await cb.answer()
             return
 
-        # Re-build paginated list
-        from bot.services.coolify import coolify
+        try:
+            # Use cached apps
+            from bot.services.coolify import coolify
 
-        apps_list = await coolify.list_applications()
-        from bot.utils.pagination import Pagination
+            apps = await coolify.list_applications()
+        except CoolifyClientError as exc:
+            await cb.message.edit_text(f"❌ Ошибка загрузки списка: {exc.message}")
+            await cb.answer()
+            return
+
         from bot.utils.formatting import format_app_short
+        from bot.utils.pagination import Pagination
 
-        pag = Pagination(items=apps_list, per_page=5, format_fn=format_app_short)
+        pag = Pagination(items=apps, per_page=5, format_fn=format_app_short)
         kb = pag.build(page=page, callback_prefix=prefix)
-        total = len(apps_list)
+        kb.inline_keyboard.append([
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="menu:main"),
+        ])
         await cb.message.edit_text(
-            f"📱 **Приложения** ({total} всего):\n_Выберите приложение для просмотра_",
+            f"📱 **Приложения** ({len(apps)} всего):\n_Выберите приложение для просмотра_",
             reply_markup=kb,
         )
         await cb.answer()

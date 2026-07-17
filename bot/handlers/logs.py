@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
@@ -11,6 +12,7 @@ from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton, Inli
 from bot.config import settings
 from bot.db.models import User
 from bot.services.coolify import CoolifyClientError, coolify
+from bot.utils.app_resolver import resolve_app
 from bot.utils.formatting import format_logs
 
 router = Router()
@@ -28,10 +30,16 @@ async def cmd_logs(message: Message, db_user: User, command: CommandObject) -> N
         await message.answer("❌ Укажите имя или UUID приложения.\nПример: `/logs my-app`")
         return
 
-    app_uuid = await _resolve_app(arg)
+    app_uuid = await resolve_app(arg)
     if not app_uuid:
         await message.answer(f"❌ Приложение «{arg}» не найдено.")
         return
+
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="back:apps")],
+        ]
+    )
 
     try:
         logs = await coolify.get_application_logs(app_uuid, lines=settings.logs_default_lines)
@@ -40,26 +48,14 @@ async def cmd_logs(message: Message, db_user: User, command: CommandObject) -> N
         return
     except Exception:
         log.exception("Error fetching logs for %s", arg)
-        await message.answer("❌ Не удалось получить логи.")
+        await message.answer("❌ Не удалось получить логи.", reply_markup=kb)
         return
 
     msg_text, file_content = format_logs(logs)
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="back:apps")],
-        ]
-    )
 
     if file_content:
-        # Send as file
         await message.answer(msg_text, reply_markup=kb)
-        path = f"/tmp/{app_uuid}_logs.txt"
-        with open(path, "w") as f:
-            f.write(file_content)
-        await message.answer_document(
-            FSInputFile(path, filename=f"{app_uuid}_logs.txt"),
-            caption=f"📋 Полные логи ({len(file_content)} символов)",
-        )
+        await _send_log_file(message, app_uuid, file_content)
     else:
         await message.answer(msg_text, reply_markup=kb)
 
@@ -67,48 +63,39 @@ async def cmd_logs(message: Message, db_user: User, command: CommandObject) -> N
 @router.callback_query(F.data.startswith("logs:"))
 async def logs_callback(cb: CallbackQuery, db_user: User) -> None:
     """Handle logs callback from app card."""
-    parts = cb.data.split(":", 2)
-    if len(parts) < 2:
+    uuid = cb.data.split(":", 1)[1]
+    if not uuid:
         await cb.answer("Некорректный запрос", show_alert=True)
         return
-    uuid = parts[1]
-    name = parts[2] if len(parts) > 2 else uuid[:8]
 
     try:
         logs = await coolify.get_application_logs(uuid, lines=settings.logs_default_lines)
     except CoolifyClientError as exc:
         await cb.message.edit_text(f"❌ Ошибка получения логов: {exc.message}")
+        await cb.answer()
         return
 
     msg_text, file_content = format_logs(logs)
     await cb.message.edit_text(msg_text)
     if file_content:
-        path = f"/tmp/{uuid}_logs.txt"
-        with open(path, "w") as f:
-            f.write(file_content)
-        await cb.message.answer_document(
-            FSInputFile(path, filename=f"{uuid}_logs.txt"),
-            caption=f"📋 Полные логи ({name})",
-        )
+        await _send_log_file(cb.message, uuid, file_content)
     await cb.answer()
 
 
-async def _resolve_app(name_or_uuid: str) -> str | None:
-    """Resolve app name or UUID to a UUID."""
-    # Try direct UUID lookup
-    try:
-        app = await coolify.get_application(name_or_uuid)
-        return app.uuid
-    except CoolifyClientError:
-        pass
+async def _send_log_file(target: Message, uuid: str, content: str) -> None:
+    """Send logs as a text file and clean up afterwards."""
+    path = f"/tmp/{uuid}_logs.txt"
+    import aiofiles
 
-    # Search by name
     try:
-        apps = await coolify.list_applications()
-        for app in apps:
-            if app.name.lower() == name_or_uuid.lower():
-                return app.uuid
-    except CoolifyClientError:
-        pass
-
-    return None
+        async with aiofiles.open(path, "w") as f:
+            await f.write(content)
+        await target.answer_document(
+            FSInputFile(path, filename=f"{uuid}_logs.txt"),
+            caption=f"📋 Полные логи ({len(content)} символов)",
+        )
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
