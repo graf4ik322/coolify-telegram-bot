@@ -410,12 +410,23 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
                 lines.append(f"\n_{srv.description[:300]}_")
             if srv.service_type:
                 lines.append(f"\n\U0001f4cb " + _TYPE + ": `{srv.service_type}`")
-            if srv.docker_compose_raw:
-                svc_names = re.findall(r"^\s+([a-zA-Z0-9_-]+):", srv.docker_compose_raw, re.MULTILINE)
-                if svc_names:
-                    lines.append(f"\n\U0001f433 **" + _CONTAINERS + " ({len(svc_names)}):**")
-                    for sn in svc_names:
-                        lines.append(f"  \u2022 `{sn}`")
+            if srv.docker_compose_raw or srv.docker_compose:
+                import yaml
+                yaml_text = srv.docker_compose or srv.docker_compose_raw or ""
+                try:
+                    parsed = yaml.safe_load(yaml_text)
+                    if parsed and "services" in parsed:
+                        svc_names = list(parsed["services"].keys())
+                        lines.append(f"\\n\\U0001f433 **" + _CONTAINERS + " ({len(svc_names)}):**")
+                        for sn in svc_names:
+                            lines.append(f"  \\u2022 `{sn}`")
+                except Exception:
+                    # Fallback: regex parse
+                    svc_names = re.findall(r"^  ([a-zA-Z0-9_-]+):", yaml_text, re.MULTILINE)
+                    if svc_names:
+                        lines.append(f"\\n\\U0001f433 **" + _CONTAINERS + " ({len(svc_names)}):**")
+                        for sn in svc_names:
+                            lines.append(f"  \\u2022 `{sn}`")
         else:
             lines = [f"\U0001f4ce " + _RESOURCE + " (`{res_uuid[:8]}...`)\n\n" + _TYPE + ": {res_type}"]
 
