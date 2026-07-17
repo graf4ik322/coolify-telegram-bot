@@ -382,8 +382,8 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
 
             em = status_emoji(status_val)
             lines = [
-                f"\\U0001f4e6 **{res_name}**",
-                f"" + _STATUS + ": {em} **{status_val or '" + _UNKNOWN + "'}**",
+                f"\U0001f4e6 **{res_name}**",
+                f"{_STATUS}: {em} **{status_val or _UNKNOWN}**",
                 f"`{res_uuid[:8]}...`",
             ]
             if fqdn_val:
@@ -420,8 +420,8 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
 
             em = status_emoji(status_val)
             lines = [
-                f"\\U0001f9e9 **{res_name}**",
-                f"" + _STATUS + ": {em} **{status_val or '" + _UNKNOWN + "'}**",
+                f"\U0001f9e9 **{res_name}**",
+                f"{_STATUS}: {em} **{status_val or _UNKNOWN}**",
                 f"`{res_uuid[:8]}...`",
             ]
             if getattr(obj, "description", None):
