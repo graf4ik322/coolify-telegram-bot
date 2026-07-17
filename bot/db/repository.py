@@ -38,6 +38,11 @@ _engine = create_async_engine(settings.database_url, echo=False)
 _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
 
+def get_session_factory():
+    """Return the async session maker for external use."""
+    return _session_factory
+
+
 async def init_db() -> None:
     """Create all tables if they don't exist."""
     async with _engine.begin() as conn:

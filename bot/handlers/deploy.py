@@ -1,4 +1,4 @@
-"""/deployments and /status handlers."""
+"""/deployments, /status, /projects handlers."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import logging
 
 from aiogram import Router
 from aiogram.filters import Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from bot.db.models import User
 from bot.services.coolify import CoolifyClientError, coolify
@@ -133,3 +133,40 @@ async def deploy_refresh(cb: CallbackQuery, db_user: User) -> None:
         ),
     )
     await cb.answer()
+
+
+@router.message(Command("projects"))
+async def cmd_projects(message: Message, db_user: User) -> None:
+    """Show projects with their environments."""
+    msg = await message.answer(loading_text("Загружаю проекты"))
+
+    try:
+        projects = await coolify._request("GET", "/projects")
+        if not isinstance(projects, list):
+            projects = []
+    except CoolifyClientError as exc:
+        text, kb = error_text(exc.message, code=str(exc.status))
+        await msg.edit_text(text, reply_markup=kb)
+        return
+
+    if not projects:
+        await msg.edit_text(empty_state("projects"), reply_markup=nav_back_main())
+        return
+
+    lines = ["📋 **Проекты:**\n"]
+    for proj in projects:
+        pid = proj.get("uuid", "")
+        pname = proj.get("name", "?")
+        lines.append(f"🏗 **{pname}** (`{pid[:8]}`)")
+
+        try:
+            envs = await coolify._request("GET", f"/projects/{pid}/environments")
+            if isinstance(envs, list):
+                for env in envs:
+                    ename = env.get("name", "?")
+                    lines.append(f"  🌍 {ename}")
+        except CoolifyClientError:
+            lines.append("  ⚠️ окружения недоступны")
+        lines.append("")
+
+    await msg.edit_text("\n".join(lines), reply_markup=nav_main_only())

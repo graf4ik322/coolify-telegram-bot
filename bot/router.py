@@ -2,7 +2,7 @@
 
 from aiogram import Dispatcher
 
-from bot.handlers import actions, apps, deploy, logs, servers, start, subscribe
+from bot.handlers import actions, apps, deploy, logs, servers, start, subscribe, useradmin
 
 
 def register_routers(dp: Dispatcher) -> None:
@@ -14,3 +14,4 @@ def register_routers(dp: Dispatcher) -> None:
     dp.include_router(logs.router)
     dp.include_router(actions.router)
     dp.include_router(subscribe.router)
+    dp.include_router(useradmin.router)

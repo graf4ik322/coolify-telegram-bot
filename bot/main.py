@@ -55,6 +55,7 @@ async def on_startup() -> None:
         commands = [
             BotCommand(command="start", description="🚀 Запуск и проверка доступа"),
             BotCommand(command="apps", description="📱 Список приложений"),
+            BotCommand(command="projects", description="📋 Проекты и окружения"),
             BotCommand(command="servers", description="🖥 Список серверов"),
             BotCommand(command="status", description="📊 Карточка приложения"),
             BotCommand(command="logs", description="📋 Логи приложения"),
@@ -70,6 +71,13 @@ async def on_startup() -> None:
         await bot.close()
     except Exception as exc:
         log.warning("Bot command setup failed (non-fatal): %s", exc)
+    finally:
+        # Ensure aiohttp session is cleaned up even if close() fails
+        if "bot" in dir():
+            try:
+                await bot.session.close()
+            except Exception:
+                pass
 
     log.info("Bot startup complete.")
 
