@@ -6,7 +6,27 @@ States use single-message editing where possible.
 
 from __future__ import annotations
 
+import base64
+
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+
+_NAV_STACK: dict[str, dict] = {}
+"""Navigation context store for back button resolution.
+
+Keyed by resource UUID. Stores parent context (proj_uuid, env_name)
+so the "back" button from resource detail goes to the correct environment.
+"""
+
+
+def set_nav_context(resource_uuid: str, proj_uuid: str, env_name: str) -> None:
+    """Store parent navigation context for a resource."""
+    _NAV_STACK[resource_uuid] = {"proj_uuid": proj_uuid, "env_name": env_name}
+
+
+def get_nav_context(resource_uuid: str) -> dict | None:
+    """Get stored parent navigation context for a resource."""
+    return _NAV_STACK.get(resource_uuid)
 
 # ── Loading ──────────────────────────────────────────────────────────────────
 

@@ -24,8 +24,10 @@ from bot.utils.formatting import status_emoji, fmt_relative_time
 from bot.utils.states import (
     empty_state,
     error_text,
+    get_nav_context,
     loading_text,
     nav_back_main,
+    set_nav_context,
 )
 
 router = Router()
@@ -311,6 +313,7 @@ async def environment_detail(cb: CallbackQuery, db_user: User) -> None:
         em = status_emoji(app.status)
         short = app.name[:25]
         lines.append(f"{em} {short}")
+        set_nav_context(app.uuid, project_uuid, env_label)
         kb_rows.append([
             InlineKeyboardButton(
                 text=f"{em} {short}",
@@ -324,6 +327,7 @@ async def environment_detail(cb: CallbackQuery, db_user: User) -> None:
             em = status_emoji(srv.status)
             short = srv.name[:25]
             lines.append(f"{em} {short}")
+            set_nav_context(srv.uuid, project_uuid, env_label)
             kb_rows.append([
                 InlineKeyboardButton(
                     text=f"{em} {short}",
@@ -459,6 +463,14 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
         else:
             lines = [f"\U0001f4ce " + _RESOURCE + " (`{res_uuid[:8]}...`)\n\n" + _TYPE + ": {res_type}"]
 
+        # Nav context for back button
+        nav_ctx = get_nav_context(res_uuid)
+        _BACK_BTN_LABEL = _TO_PROJ  # "\u041a \u043f\u0440\u043e\u0435\u043a\u0442\u0443"
+        _BACK_BTN_DATA = "menu:projects"
+        if nav_ctx:
+            _BACK_BTN_LABEL = "\u041a \u043e\u043a\u0440\u0443\u0436\u0435\u043d\u0438\u044e"
+            _BACK_BTN_DATA = f"env:{nav_ctx['proj_uuid']}:{nav_ctx['env_name']}"
+
         # ── Action buttons (same for apps and services) ─────────────────────
         lines.append(f"\n\n**" + _ACTIONS + ":**")
 
@@ -473,7 +485,7 @@ async def resource_detail(cb: CallbackQuery, db_user: User) -> None:
             [
                 InlineKeyboardButton(text="\U0001f4cb \u041b\u043e\u0433\u0438", callback_data=f"log_r:{res_type}:{res_uuid}"),
             ],
-            [InlineKeyboardButton(text="\u2b05\ufe0f " + _BACK, callback_data="menu:projects")],
+            [InlineKeyboardButton(text="\u2b05\ufe0f " + _BACK_BTN_LABEL, callback_data=_BACK_BTN_DATA)],
             [InlineKeyboardButton(text="\U0001f3e0 " + _MAIN_MENU, callback_data="menu:main")],
         ]
 

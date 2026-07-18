@@ -49,7 +49,6 @@ async def cmd_start(message: Message, db_user: User) -> None:
         f"_Приборная панель + рычаг перезапуска_"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📋 Приложения", callback_data="menu:apps_go")],
         [InlineKeyboardButton(text="📋 Проекты", callback_data="menu:projects_go")],
         [InlineKeyboardButton(text="🖥 Серверы", callback_data="menu:servers_go")],
         [InlineKeyboardButton(text="📦 Деплои", callback_data="menu:deployments_go")],
