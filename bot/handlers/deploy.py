@@ -11,7 +11,12 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from bot.db.models import User
 from bot.services.coolify import CoolifyClientError, coolify
 from bot.utils.app_resolver import resolve_app
-from bot.utils.formatting import format_app_card, fmt_deployment_status, fmt_relative_time
+from bot.utils.formatting import (
+    format_app_card,
+    fmt_deployment_status,
+    fmt_relative_time,
+    status_emoji,
+)
 from bot.utils.states import empty_state, error_text, loading_text, nav_back_main, nav_main_only
 
 router = Router()
@@ -113,7 +118,7 @@ async def _show_deployments(cb: CallbackQuery, db_user: User) -> None:
         return
 
     if not deploys:
-        await cb.message.edit_text(empty_state("deployments"), reply_markup=nav_back_main())
+        await cb.message.edit_text(empty_state("deployments"), reply_markup=nav_main_only())
         return
 
     lines = ["📦 **Последние деплои:**\n"]
